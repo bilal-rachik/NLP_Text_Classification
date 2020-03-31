@@ -2,17 +2,17 @@ import torch
 from torch import nn
 import numpy as np
 from Model_RNN.utils import evaluate_model
+import torch.nn.functional as F
 
 
-class RNN(nn.Module):
+class RNNClassifier(nn.Module):
     def __init__(self, config, vocab_size, word_embeddings):
-        super(RNN, self).__init__()
+        super(RNNClassifier, self).__init__()
 
         """
                 Arguments
                 ---------
-                output_size : 
-                hidden_sie : Size of the hidden_state of the LSTM
+                config: 
                 vocab_size : Size of the vocabulary containing unique words
                 embedding_length : Pre-trained faster text fr  word_embeddings which we will use to create our word_embedding look-up table 
 
@@ -25,7 +25,7 @@ class RNN(nn.Module):
 
         # Embedding Layer
         self.embeddings = nn.Embedding(self.vocab_size, self.config.embed_size)
-        self.embeddings.weight = nn.Parameter(self.word_embeddings, requires_grad=False)
+        self.embeddings.weight = nn.Parameter(self.word_embeddings, requires_grad=True)
 
         self.rnn = nn.RNN(input_size=self.config.embed_size,
                           hidden_size=self.config.hidden_size,
@@ -42,7 +42,7 @@ class RNN(nn.Module):
         )
 
         # Softmax non-linearity
-        self.softmax = nn.Softmax()
+        self.softmax = F.log_softmax
 
     def forward(self, x):
 
@@ -67,7 +67,10 @@ class RNN(nn.Module):
         # Convert input to (64, hidden_size * hidden_layers * num_directions) for linear layer
         final_feature_map = torch.cat([final_feature_map[i, :, :] for i in range(final_feature_map.shape[0])], dim=1)
         final_out = self.fc(final_feature_map)
-        return self.softmax(final_out)
+
+
+
+        return self.softmax(final_out,dim=-1)
 
     def add_optimizer(self, optimizer):
         self.optimizer = optimizer
@@ -93,10 +96,10 @@ class RNN(nn.Module):
             self.optimizer.zero_grad()
             if torch.cuda.is_available():
                 x = batch.text.cuda()
-                y = (batch.label - 1).type(torch.cuda.LongTensor)
+                y = (batch.label).type(torch.cuda.LongTensor)
             else:
                 x = batch.text
-                y = (batch.label - 1).type(torch.LongTensor)
+                y = (batch.label).type(torch.LongTensor)
             y_pred = self.__call__(x)
             loss = self.loss_op(y_pred, y)
             loss.backward()

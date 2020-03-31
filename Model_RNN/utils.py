@@ -7,6 +7,8 @@ from torchtext.vocab import Vectors
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OrdinalEncoder
 from spacy.lang.fr import French
+from sklearn.feature_extraction.text import strip_accents_ascii
+from spacy.lang.fr.stop_words import STOP_WORDS
 
 class Dataset(object):
     def __init__(self, config):
@@ -25,8 +27,6 @@ class Dataset(object):
         data_all = data_all.fillna("")
         data_train, data_valid = sms.train_test_split(data_all, test_size=tauxValid, random_state=47)
         return data_train, data_valid
-
-
 
     def get_pandas_df(self, input_path, nb_line=100000, tauxValid=0.2):
         '''
@@ -67,11 +67,25 @@ class Dataset(object):
             val_file (String): absolute path to validation file
         '''
 
-        NLP = French()
-        tokenizer = lambda sent: [x.text for x in NLP.tokenizer(sent) if
-                                  x.text != " " and not x.is_punct and not x.like_num and x.text != 'n']
 
-        tokenizer = lambda sent: [x.text for x in NLP.tokenizer(sent) if x.text != " "]
+        NLP = French()
+
+        def tokenizer(sentence):
+            # Creating our token object, which is used to create documents with linguistic annotations.
+            mytokens = NLP(sentence)
+
+            # Lemmatizing each token and converting each token into lowercase
+            mytokens = [word.lemma_.lower() for word in mytokens if word.text != " " and
+                        not word.is_punct and not word.like_num and word.text != 'n']
+            # Removing stop words
+            mytokens = [word for word in mytokens if word not in STOP_WORDS]
+
+            # Remove accentuated char for any unicode symbol
+            mytokens = [strip_accents_ascii(word) for word in mytokens]
+
+            # return preprocessed list of tokens
+            return mytokens
+
 
         # Creating Field for data
         TEXT = data.Field(sequential=True, tokenize=tokenizer, lower=True, fix_length=self.config.max_sen_len)
@@ -87,7 +101,7 @@ class Dataset(object):
         val_examples = [data.Example.fromlist(i, datafields) for i in val_df.values.tolist()]
         val_data = data.Dataset(val_examples, datafields)
 
-        TEXT.build_vocab(train_data, vectors=Vectors(w2v_file),max_size=20000,min_freq=2)
+        TEXT.build_vocab(train_data, vectors=Vectors(w2v_file),max_size=20000,min_freq=3)
         self.word_embeddings = TEXT.vocab.vectors
         self.vocab = TEXT.vocab
 
@@ -96,13 +110,14 @@ class Dataset(object):
             batch_size=self.config.batch_size,
             sort_key=lambda x: len(x.text),
             repeat=False,
-            shuffle=False)
+            shuffle=True)
 
         print("Loaded {} training examples".format(len(train_data)))
         print("Loaded {} validation examples".format(len(val_data)))
 
 
 def evaluate_model(model, iterator):
+    model.eval()
     all_preds = []
     all_y = []
     for idx, batch in enumerate(iterator):
@@ -111,7 +126,7 @@ def evaluate_model(model, iterator):
         else:
             x = batch.text
         y_pred = model(x)
-        predicted = torch.max(y_pred.cpu().data, 1)[1] + 1
+        predicted = torch.max(y_pred.cpu().data, 1)[1]
         all_preds.extend(predicted.numpy())
         all_y.extend(batch.label.numpy())
     score = accuracy_score(all_y, np.array(all_preds).flatten())
