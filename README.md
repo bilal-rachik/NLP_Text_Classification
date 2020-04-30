@@ -1,5 +1,17 @@
 # NLP_Text_Classification
+Ce référentiel contient quelques bonnes pratiques d'apprentissage automatique clés pour résoudre
+les problèmes de classification de texte. 
 
+Voici ce que vous apprendrez:
+
+* Le flux de travail de haut niveau de bout en bout pour résoudre les problèmes de classification de texte à l'aide de l'apprentissage automatique
+* Comment choisir le bon modèle pour votre problème de classification de texte
+* Comment implémenter votre modèle de choix
+*  L'implémentation de divers modèles de classification de texte
+
+
+
+## Performance du modèle
 
 <table>
   <tr>
