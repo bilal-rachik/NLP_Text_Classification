@@ -12,7 +12,7 @@ Voici ce que vous apprendrez:
 
 
 ## Performance du modèle
-
+#####Approche bag of words.
 <table>
   <tr>
     <th rowspan="3">Model</th>
@@ -177,3 +177,8 @@ Voici ce que vous apprendrez:
     <td> 0.68</td>
   </tr>
 </table>
+
+#####Approche séquentielle
+
+
+
